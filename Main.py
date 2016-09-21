@@ -14,6 +14,7 @@ import random
 import sys
 from datetime import datetime
 from keras.layers.wrappers import Bidirectional
+
 '''
     Experiment Configuration:
 '''
