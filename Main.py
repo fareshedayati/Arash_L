@@ -12,8 +12,10 @@ from keras.utils.data_utils import get_file
 import numpy as np
 import random
 import sys
+import re
 from datetime import datetime
 from keras.layers.wrappers import Bidirectional
+
 
 '''
     Experiment Configuration:
@@ -21,7 +23,7 @@ from keras.layers.wrappers import Bidirectional
 EXPERIMENT_CONFIGURATION = '1_Bidirectional_without_Dropout_optimizer_rmsprop'
 
 
-with codecs.open('Arabic_Training Set_Revised1.txt', encoding='utf-8-sig') as myfile:
+with codecs.open('Arabic_Training_Set_Revised2.txt', encoding='utf-8-sig') as myfile:
 #with open('Arabic_Training Set_Revised1.txt') as myfile:
     text = myfile.read()
 
@@ -55,24 +57,25 @@ diacritics = set(['ّ', 'ْ', 'ٌ', 'ٍ', 'ً', 'ُ', 'ِ', 'َ', '@', '#', '$',
 '''
 
 original_text = text.strip()
-original_text = original_text.replace('@', '')
-original_text = original_text.replace('#', '')
-original_text = original_text.replace('$', '')
-original_text = original_text.replace('&', '')
-original_text = original_text.replace('"', '')
-original_text = original_text.replace('?', '')
+original_text = re.sub("[0-9a-zA-Z@#$&αβ()\[\]{}~*;,?\"\-_]", "", original_text)
+#original_text = original_text.replace('@', '')
+#original_text = original_text.replace('#', '')
+#original_text = original_text.replace('$', '')
+#original_text = original_text.replace('&', '')
+#original_text = original_text.replace('"', '')
+#original_text = original_text.replace('?', '')
 original_text = original_text.replace('!', '')
 original_text = original_text.replace(':', '')
-original_text = original_text.replace(',', '')
-original_text = original_text.replace(';', '')
-original_text = original_text.replace('*', '')
-original_text = original_text.replace('~', '')
-original_text = original_text.replace('}', '')
-original_text = original_text.replace('{', '')
-original_text = original_text.replace(']', '')
-original_text = original_text.replace('[', '')
-original_text = original_text.replace('-', '')
-original_text = original_text.replace('_', '')
+#original_text = original_text.replace(',', '')
+#original_text = original_text.replace(';', '')
+#original_text = original_text.replace('*', '')
+#original_text = original_text.replace('~', '')
+#original_text = original_text.replace('}', '')
+#original_text = original_text.replace('{', '')
+#original_text = original_text.replace(']', '')
+#original_text = original_text.replace('[', '')
+#original_text = original_text.replace('-', '')
+#original_text = original_text.replace('_', '')
 
 
 original_text = original_text.replace(SAKEN_CHAR + SAKEN_CHAR, SAKEN_CHAR)  # Remove excessive SAAKENS
@@ -82,21 +85,21 @@ original_text = original_text.replace('ِِ', 'ِ')
 original_text = original_text.replace(FATHE_TASHDID + 'َ', FATHE_TASHDID)
 original_text = original_text.replace(KASRE_TASHDID + 'ِ', KASRE_TASHDID)
 original_text = original_text.replace(ZAMME_TASHDID + 'ُ', ZAMME_TASHDID)
-original_text = original_text.replace('(', '')
-original_text = original_text.replace(')', '')
-original_text = original_text.replace('0', '')
-original_text = original_text.replace('1', '')
-original_text = original_text.replace('2', '')
-original_text = original_text.replace('3', '')
-original_text = original_text.replace('4', '')
-original_text = original_text.replace('5', '')
-original_text = original_text.replace('6', '')
-original_text = original_text.replace('7', '')
-original_text = original_text.replace('8', '')
-original_text = original_text.replace('9', '')
+#original_text = original_text.replace('(', '')
+#original_text = original_text.replace(')', '')
+#original_text = original_text.replace('0', '')
+#original_text = original_text.replace('1', '')
+#original_text = original_text.replace('2', '')
+#original_text = original_text.replace('3', '')
+#original_text = original_text.replace('4', '')
+#original_text = original_text.replace('5', '')
+#original_text = original_text.replace('6', '')
+#original_text = original_text.replace('7', '')
+#original_text = original_text.replace('8', '')
+#original_text = original_text.replace('9', '')
 
 
-original_text = original_text#[0:100000]
+original_text = original_text[0:100000]
 original_text_length = len(original_text)
 training_data = original_text[: int(0.75 * original_text_length)].strip()
 testing_data = original_text[int(0.75 * original_text_length):].strip()
@@ -315,6 +318,8 @@ for iteration in range(1, 41):
         statistics_result = 'Iteration ' + str(iteration)
         statistics_result += '\nNumber of Epoch: ' + str(number_of_epoch)
         statistics_result += '\nOptimizer: ' + optimizer
+        statistics_result += '\nNumber of Layer: ' + str(model.layers.count(Bidirectional))  #does not work
+        statistics_result += '\nnn: ' + str(nn)
         statistics_result += '\nDiversity: ' + str(diversity)
         statistics_result += '\nCorrect Predictions: ' + str(correct_prediction)
         statistics_result += '\nWrong Predictions: ' + str(wrong_prediction)
@@ -333,4 +338,3 @@ for iteration in range(1, 41):
         #model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
 
 model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
-
