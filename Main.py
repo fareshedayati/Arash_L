@@ -13,6 +13,7 @@ import numpy as np
 import random
 import sys
 import re
+from sklearn.metrics import confusion_matrix
 from datetime import datetime
 from keras.layers.wrappers import Bidirectional
 
@@ -75,7 +76,7 @@ original_text = original_text.replace(ZAMME_TASHDID + 'ُ', ZAMME_TASHDID)
 
 
 
-original_text = original_text#[0:10000]
+original_text = original_text#[0:1000]
 original_text_length = len(original_text)
 training_data = original_text[: int(0.75 * original_text_length)].strip()
 testing_data = original_text[int(0.75 * original_text_length):].strip()
@@ -198,7 +199,7 @@ indices_diacritics = dict((i, c) for i, c in enumerate(diacritics))
 for c in diacritics:
     testing_data = testing_data.replace(c, '')
 
-testing_data = ((maxlen - 1) / 2) * (' ' + SAKEN_CHAR) + testing_data
+testing_data = ((maxlen - 1) // 2) * (' ' + SAKEN_CHAR) + testing_data
 
 #print("testing_data", testing_data)
 
@@ -276,10 +277,12 @@ def sample(preds, temperature=1.0):
     return np.argmax(probas)
 
 # train the model, output generated text after each iteration
+y_true = []
+y_pred = []
 statistics_result = ''
 accuracy_in_first_80_chars = 0.0
 number_of_epoch = 2
-for iteration in range(1, 41):
+for iteration in range(1, 31):
     with open(EXPERIMENT_CONFIGURATION + '_Output.txt', mode='a') as f:
         f.write('\n')
         f.write(('-' * 50) + '\n')
@@ -317,6 +320,9 @@ for iteration in range(1, 41):
             else:
                 wrong_prediction += 1.0
 
+            y_true.append(refined_testing_data[refined_testing_data_index])
+            y_pred.append(next_diacritic)
+
             generated += testing_data[i] + next_diacritic
 
             if i == 80 + (maxlen - 1):
@@ -341,13 +347,20 @@ for iteration in range(1, 41):
                              str(accuracy_in_first_80_chars) + ' %'
         statistics_result += '\nAccuracy in Entire Testing data: ' + \
                              str(round((correct_prediction/(correct_prediction + wrong_prediction)) * 100, 4)) + ' %'
+
+        statistics_result += '\nConfusion_matrix: \n' + str(confusion_matrix(y_true, y_pred,
+                                                                             labels=np.array(list(diacritics))))
         statistics_result += str('\n' + ('*' * 50) + '\n\n')
+
+        confusion_matrix(y_true, y_pred, diacritics)
 
         with open(EXPERIMENT_CONFIGURATION + '_Statistics.txt', mode='a') as f:
            f.write(statistics_result)
 
         with open(EXPERIMENT_CONFIGURATION + '_Output.txt', mode='a') as f:
             f.write('\nEnd time: ' + str(datetime.now()) + '\n' + '\n')
+
+
 
         #model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
 
