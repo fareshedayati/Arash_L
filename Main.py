@@ -21,6 +21,7 @@ from keras.layers.wrappers import Bidirectional
     Experiment Configuration:
 '''
 EXPERIMENT_CONFIGURATION = '1_Bidirectional_without_Dropout_optimizer_rmsprop'
+maxlen = 65
 
 
 with codecs.open('Arabic_Training_Set_Revised2.txt', encoding='utf-8-sig') as myfile:
@@ -58,24 +59,10 @@ diacritics = set(['ّ', 'ْ', 'ٌ', 'ٍ', 'ً', 'ُ', 'ِ', 'َ', '@', '#', '$',
 
 original_text = text.strip()
 original_text = re.sub("[0-9a-zA-Z@#$&αβ()\[\]{}~*;,?\"\-_]", "", original_text)
-#original_text = original_text.replace('@', '')
-#original_text = original_text.replace('#', '')
-#original_text = original_text.replace('$', '')
-#original_text = original_text.replace('&', '')
-#original_text = original_text.replace('"', '')
-#original_text = original_text.replace('?', '')
+
 original_text = original_text.replace('!', '')
 original_text = original_text.replace(':', '')
-#original_text = original_text.replace(',', '')
-#original_text = original_text.replace(';', '')
-#original_text = original_text.replace('*', '')
-#original_text = original_text.replace('~', '')
-#original_text = original_text.replace('}', '')
-#original_text = original_text.replace('{', '')
-#original_text = original_text.replace(']', '')
-#original_text = original_text.replace('[', '')
-#original_text = original_text.replace('-', '')
-#original_text = original_text.replace('_', '')
+
 
 
 original_text = original_text.replace(SAKEN_CHAR + SAKEN_CHAR, SAKEN_CHAR)  # Remove excessive SAAKENS
@@ -85,21 +72,10 @@ original_text = original_text.replace('ِِ', 'ِ')
 original_text = original_text.replace(FATHE_TASHDID + 'َ', FATHE_TASHDID)
 original_text = original_text.replace(KASRE_TASHDID + 'ِ', KASRE_TASHDID)
 original_text = original_text.replace(ZAMME_TASHDID + 'ُ', ZAMME_TASHDID)
-#original_text = original_text.replace('(', '')
-#original_text = original_text.replace(')', '')
-#original_text = original_text.replace('0', '')
-#original_text = original_text.replace('1', '')
-#original_text = original_text.replace('2', '')
-#original_text = original_text.replace('3', '')
-#original_text = original_text.replace('4', '')
-#original_text = original_text.replace('5', '')
-#original_text = original_text.replace('6', '')
-#original_text = original_text.replace('7', '')
-#original_text = original_text.replace('8', '')
-#original_text = original_text.replace('9', '')
 
 
-original_text = original_text[0:100000]
+
+original_text = original_text#[0:10000]
 original_text_length = len(original_text)
 training_data = original_text[: int(0.75 * original_text_length)].strip()
 testing_data = original_text[int(0.75 * original_text_length):].strip()
@@ -119,6 +95,7 @@ training_data = training_data.replace(TANVINE_ZAMME_TASHDID, TASHDID_TANVINE_ZAM
 for k, v in diacritics_mappings.items():
     training_data = training_data.replace(k, v)
 
+'''
 refined_text = ''
 
 for i in range(0, len(training_data) - 1):
@@ -136,7 +113,7 @@ else:
     refined_text += training_data[i] + SAKEN_CHAR
 
 #print('refined_text', refined_text)
-
+'''
 
 ########################################################################
 '''
@@ -152,6 +129,34 @@ testing_data = testing_data.replace(TANVINE_ZAMME_TASHDID, TASHDID_TANVINE_ZAMME
 
 for k, v in diacritics_mappings.items():
     testing_data = testing_data.replace(k, v)
+
+#############################Cleaning Training Data###############################
+
+splited_training_data = re.split('[!؟:،؛,.]', training_data)
+cleaned_training_data = ''
+
+for s in splited_training_data:
+    if len(s) > maxlen:
+        cleaned_training_data += s + '.'
+
+refined_text = ''
+for i in range(0, len(cleaned_training_data) - 1):
+    if cleaned_training_data[i] in diacritics:
+        refined_text += cleaned_training_data[i]
+    elif cleaned_training_data[i + 1] not in diacritics:
+        refined_text += cleaned_training_data[i] + SAKEN_CHAR
+    else:
+        refined_text += cleaned_training_data[i]
+
+i += 1
+if cleaned_training_data[i] in diacritics:
+    refined_text += cleaned_training_data[i]
+else:
+    refined_text += cleaned_training_data[i] + SAKEN_CHAR
+
+#print('refined_text', refined_text)
+########################################################################################
+
 
 refined_testing_data = ''
 
@@ -193,7 +198,7 @@ indices_diacritics = dict((i, c) for i, c in enumerate(diacritics))
 for c in diacritics:
     testing_data = testing_data.replace(c, '')
 
-testing_data = 9 * (' ' + SAKEN_CHAR) + testing_data
+testing_data = ((maxlen - 1) / 2) * (' ' + SAKEN_CHAR) + testing_data
 
 #print("testing_data", testing_data)
 
@@ -202,14 +207,23 @@ testing_data = 9 * (' ' + SAKEN_CHAR) + testing_data
 
 # cut the text in semi-redundant sequences of maxlen characters
 
-maxlen = 19
+
 step = 2
 sentences = []
 next_chars = []
 
+refined_text_tokens = re.split('[.]', refined_text)
+for token in refined_text_tokens:
+    token = token.lstrip(''.join(diacritics))
+    for i in range(0, len(token) - maxlen, step):
+        sentences.append(token[i: i + maxlen])
+        next_chars.append(token[i + maxlen])
+
+'''
 for i in range(0, len(refined_text) - maxlen, step):
     sentences.append(refined_text[i: i + maxlen])
     next_chars.append(refined_text[i + maxlen])
+'''
 
 #with open('refined_text.txt', mode='w+') as f:
 with codecs.open('refined_text.txt', encoding='utf-8', mode='w+') as f:
@@ -227,8 +241,8 @@ for i, sentence in enumerate(sentences):
 with codecs.open('inputs.txt', encoding='utf-8', mode='w+') as f:
     for i, sentence in enumerate(sentences):
         f.write((repr(i) + '\n'))
-        f.write(('sentence:' + sentence + '\n'))
-        f.write(('next_char:' + next_chars[i] + '\n'))
+        f.write(('\nsentence:' + sentence + '\n'))
+        f.write(('\nnext_char:' + next_chars[i] + '\n'))
         f.write('\n')
 
 # build the model: 2 stacked LSTM
@@ -264,13 +278,13 @@ def sample(preds, temperature=1.0):
 # train the model, output generated text after each iteration
 statistics_result = ''
 accuracy_in_first_80_chars = 0.0
-number_of_epoch = 10
+number_of_epoch = 2
 for iteration in range(1, 41):
     with open(EXPERIMENT_CONFIGURATION + '_Output.txt', mode='a') as f:
         f.write('\n')
-        f.write('-' * 50 + '\n')
-        f.write('Iteration ' + str(iteration) + '\n')
-        f.write('Start time: ' + str(datetime.now()) + '\n')
+        f.write(('-' * 50) + '\n')
+        f.write('\nIteration ' + str(iteration) + '\n')
+        f.write('\nStart time: ' + str(datetime.now()) + '\n')
 
     model.fit(X, y, batch_size=128, nb_epoch=number_of_epoch)
 
@@ -313,7 +327,7 @@ for iteration in range(1, 41):
             generated = generated.replace(v, k)
 
         with codecs.open(EXPERIMENT_CONFIGURATION + '_Output.txt', encoding='utf-8-sig', mode='a') as f:
-            f.write('----test data with diacritics: ' + generated)
+            f.write('-----test data with diacritics: \n' + generated)
 
         statistics_result = 'Iteration ' + str(iteration)
         statistics_result += '\nNumber of Epoch: ' + str(number_of_epoch)
@@ -333,7 +347,7 @@ for iteration in range(1, 41):
            f.write(statistics_result)
 
         with open(EXPERIMENT_CONFIGURATION + '_Output.txt', mode='a') as f:
-            f.write('End time: ' + str(datetime.now()) + '\n' + '\n')
+            f.write('\nEnd time: ' + str(datetime.now()) + '\n' + '\n')
 
         #model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
 
