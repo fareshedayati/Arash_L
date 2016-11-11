@@ -25,7 +25,7 @@ EXPERIMENT_CONFIGURATION = '1_Bidirectional_without_Dropout_optimizer_rmsprop'
 maxlen = 65
 
 
-with codecs.open('Arabic_Training_Set_Revised2.txt', encoding='utf-8-sig') as myfile:
+with codecs.open('Arabic_Training_Set_Revised1.txt', encoding='utf-8-sig') as myfile:
 #with open('Arabic_Training Set_Revised1.txt') as myfile:
     text = myfile.read()
 
@@ -76,7 +76,7 @@ original_text = original_text.replace(ZAMME_TASHDID + 'ُ', ZAMME_TASHDID)
 
 
 
-original_text = original_text#[0:1000]
+original_text = original_text#[0:1000000]
 original_text_length = len(original_text)
 training_data = original_text[: int(0.75 * original_text_length)].strip()
 testing_data = original_text[int(0.75 * original_text_length):].strip()
@@ -195,6 +195,7 @@ indices_char = dict((i, c) for i, c in enumerate(all_chars))
 diacritics_indices = dict((c, i) for i, c in enumerate(diacritics))
 indices_diacritics = dict((i, c) for i, c in enumerate(diacritics))
 
+testing_data = refined_testing_data
 # preparing testting data
 for c in diacritics:
     testing_data = testing_data.replace(c, '')
@@ -249,22 +250,37 @@ with codecs.open('inputs.txt', encoding='utf-8', mode='w+') as f:
 # build the model: 2 stacked LSTM
 print('Build model...')
 
-nn = 128*2
-model = Sequential()
-model.add(Bidirectional(GRU(nn, return_sequences=True), input_shape=(maxlen, len(all_chars))))
-model.add(Dropout(0.05))
+nn = 32
+#model = Sequential()
+#model.add(Bidirectional(GRU(nn, return_sequences=True), input_shape=(maxlen, len(all_chars))))
+#model.add(Dropout(0.20))
 #model.add(Bidirectional(GRU(nn, return_sequences=True)))
-#model.add(Dropout(0.05))
-model.add(Bidirectional(GRU(nn)))
-model.add(Dropout(0.05))
+#model.add(Dropout(0.20))
+#model.add(Bidirectional(GRU(nn, return_sequences=True)))
+#model.add(Dropout(0.20))
+#model.add(Bidirectional(GRU(nn)))
+#model.add(Dropout(0.20))
+#model.add(Dense((len(diacritics))))
+#model.add(Activation('softmax'))
+
+nn=64
+model = Sequential()
+model.add(GRU(nn, return_sequences=True, input_shape=(maxlen, len(all_chars))))
+
+#model.add(Dropout(0.10))
+#model.add(GRU(nn, return_sequences=True))
+#model.add(Dropout(0.10))
+#model.add(GRU(nn, return_sequences=True))
+#model.add(Dropout(0.10))
+#model.add(GRU(nn, return_sequences=True))
+#model.add(Dropout(0.10))
+
+model.add(GRU(nn))
 model.add(Dense((len(diacritics))))
 model.add(Activation('softmax'))
 
 optimizer = 'rmsprop'
 model.compile(loss='categorical_crossentropy', optimizer=optimizer)
-#print(model)
-
-#model.fit(X, y, batch_size=128, nb_epoch=10)
 
 def sample(preds, temperature=1.0):
     # helper function to sample an index from a probability array
@@ -281,7 +297,7 @@ y_true = []
 y_pred = []
 statistics_result = ''
 accuracy_in_first_80_chars = 0.0
-number_of_epoch = 2
+number_of_epoch = 10
 for iteration in range(1, 31):
     with open(EXPERIMENT_CONFIGURATION + '_Output.txt', mode='a') as f:
         f.write('\n')
@@ -289,7 +305,7 @@ for iteration in range(1, 31):
         f.write('\nIteration ' + str(iteration) + '\n')
         f.write('\nStart time: ' + str(datetime.now()) + '\n')
 
-    model.fit(X, y, batch_size=128, nb_epoch=number_of_epoch)
+    model.fit(X, y, batch_size=nn*10, nb_epoch=number_of_epoch)
 
     for diversity in [1.0]:
         with open(EXPERIMENT_CONFIGURATION + '_Output.txt', mode='a') as f:
@@ -351,8 +367,6 @@ for iteration in range(1, 31):
         statistics_result += '\nConfusion_matrix: \n' + str(confusion_matrix(y_true, y_pred,
                                                                              labels=np.array(list(diacritics))))
         statistics_result += str('\n' + ('*' * 50) + '\n\n')
-
-        confusion_matrix(y_true, y_pred, diacritics)
 
         with open(EXPERIMENT_CONFIGURATION + '_Statistics.txt', mode='a') as f:
            f.write(statistics_result)
