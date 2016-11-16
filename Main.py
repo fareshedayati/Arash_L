@@ -4,33 +4,20 @@ from __future__ import print_function
 import codecs
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout
-from keras.layers import LSTM
 from keras.layers.recurrent import GRU
-from keras.models import model_from_json
-from keras.models import load_model
-from keras.utils.data_utils import get_file
 import numpy as np
-import random
-import sys
 import re
 from sklearn.metrics import confusion_matrix
 from datetime import datetime
 from keras.layers.wrappers import Bidirectional
+import os.path
 
-
+# ########################################Constants###########################################################
 '''
     Experiment Configuration:
 '''
 EXPERIMENT_CONFIGURATION = '1_Bidirectional_without_Dropout_optimizer_rmsprop'
 maxlen = 65
-
-
-with codecs.open('Arabic_Training_Set_Revised1.txt', encoding='utf-8-sig') as myfile:
-#with open('Arabic_Training Set_Revised1.txt') as myfile:
-    text = myfile.read()
-
-print('corpus length:', len(text))
-#print('text:', repr(text))
 
 SAKEN_CHAR = 'ْ'
 
@@ -54,51 +41,101 @@ diacritics_mappings = {TASHDID_FATHE: '@', TASHDID_KASRE: '#', TASHDID_ZAMME: '$
 
 diacritics = set(['ّ', 'ْ', 'ٌ', 'ٍ', 'ً', 'ُ', 'ِ', 'َ', '@', '#', '$', '&', 'α', 'β'])
 
+# ################################################Preparing Training and Testing Data###############################
+# Original Text
+original_text = ''
+if os.path.exists('original_text.txt'):
+    with codecs.open('original_text.txt', encoding='utf-8-sig') as original_text_file:
+        original_text = original_text_file.read()
+else:
+    with codecs.open('Arabic_Training Set_Revised1.txt', encoding='utf-8-sig') as myfile:
+        text = myfile.read()
+
+    original_text = text.strip()
+    original_text = re.sub("[0-9a-zA-Z@#$&αβ()\[\]{}~*;,?\"\-_]", "", original_text)
+
+    original_text = original_text.replace('!', '')
+    original_text = original_text.replace(':', '')
+
+    original_text = original_text.replace(SAKEN_CHAR + SAKEN_CHAR, SAKEN_CHAR)  # Remove excessive SAAKENS
+    original_text = original_text.replace('ََ', 'َ')
+    original_text = original_text.replace('ُُ', 'ُ')
+    original_text = original_text.replace('ِِ', 'ِ')
+    original_text = original_text.replace(FATHE_TASHDID + 'َ', FATHE_TASHDID)
+    original_text = original_text.replace(KASRE_TASHDID + 'ِ', KASRE_TASHDID)
+    original_text = original_text.replace(ZAMME_TASHDID + 'ُ', ZAMME_TASHDID)
+
+    with codecs.open('original_text.txt', encoding='utf-8', mode='w+') as f:
+        f.write(original_text)
+
+
+print('corpus length:', len(original_text))
+# print('text:', repr(text))
+
 '''
     create two sets of data: training: 75% of data and testing: 25% of data
 '''
 
-original_text = text.strip()
-original_text = re.sub("[0-9a-zA-Z@#$&αβ()\[\]{}~*;,?\"\-_]", "", original_text)
-
-original_text = original_text.replace('!', '')
-original_text = original_text.replace(':', '')
-
-
-
-original_text = original_text.replace(SAKEN_CHAR + SAKEN_CHAR, SAKEN_CHAR)  # Remove excessive SAAKENS
-original_text = original_text.replace('ََ', 'َ')
-original_text = original_text.replace('ُُ', 'ُ')
-original_text = original_text.replace('ِِ', 'ِ')
-original_text = original_text.replace(FATHE_TASHDID + 'َ', FATHE_TASHDID)
-original_text = original_text.replace(KASRE_TASHDID + 'ِ', KASRE_TASHDID)
-original_text = original_text.replace(ZAMME_TASHDID + 'ُ', ZAMME_TASHDID)
-
-
-
 original_text = original_text#[0:1000000]
 original_text_length = len(original_text)
-training_data = original_text[: int(0.75 * original_text_length)].strip()
-testing_data = original_text[int(0.75 * original_text_length):].strip()
 
-# make sure training and testing data do not start with diacritics
-for d in diacritics:
-    testing_data = testing_data.lstrip(d)
-    training_data = training_data.lstrip(d)
+# Refined Text
+refined_text = ''
+training_data = ''
+testing_data = ''
+refined_testing_data = ''
+if os.path.exists('refined_text.txt'):
+    with codecs.open('refined_text.txt', encoding='utf-8-sig') as refined_text_file:
+        refined_text = refined_text_file.read()
+else:
+    training_data = original_text[: int(0.75 * original_text_length)].strip()
 
-training_data = training_data.replace(FATHE_TASHDID, TASHDID_FATHE)
-training_data = training_data.replace(KASRE_TASHDID, TASHDID_KASRE)
-training_data = training_data.replace(ZAMME_TASHDID, TASHDID_ZAMME)
-training_data = training_data.replace(TANVINE_FATHE_TASHDID, TASHDID_TANVINE_FATHE)
-training_data = training_data.replace(TANVINE_KASREH_TASHDID, TASHDID_TANVINE_KASRE)
-training_data = training_data.replace(TANVINE_ZAMME_TASHDID, TASHDID_TANVINE_ZAMME)
 
-for k, v in diacritics_mappings.items():
-    training_data = training_data.replace(k, v)
+    # make sure training and testing data do not start with diacritics
+    for d in diacritics:
+        testing_data = testing_data.lstrip(d)
+        training_data = training_data.lstrip(d)
+
+    training_data = training_data.replace(FATHE_TASHDID, TASHDID_FATHE)
+    training_data = training_data.replace(KASRE_TASHDID, TASHDID_KASRE)
+    training_data = training_data.replace(ZAMME_TASHDID, TASHDID_ZAMME)
+    training_data = training_data.replace(TANVINE_FATHE_TASHDID, TASHDID_TANVINE_FATHE)
+    training_data = training_data.replace(TANVINE_KASREH_TASHDID, TASHDID_TANVINE_KASRE)
+    training_data = training_data.replace(TANVINE_ZAMME_TASHDID, TASHDID_TANVINE_ZAMME)
+
+    for k, v in diacritics_mappings.items():
+        training_data = training_data.replace(k, v)
+
+    # ############################Cleaning Training Data###############################
+    splitted_training_data = re.split('[!؟:،؛,.]', training_data)
+    cleaned_training_data = ''
+
+    for s in splitted_training_data:
+        if len(s) > maxlen:
+            cleaned_training_data += s + '.'
+
+    refined_text = ''
+    for i in range(0, len(cleaned_training_data) - 1):
+        if cleaned_training_data[i] in diacritics:
+            refined_text += cleaned_training_data[i]
+        elif cleaned_training_data[i + 1] not in diacritics:
+            refined_text += cleaned_training_data[i] + SAKEN_CHAR
+        else:
+            refined_text += cleaned_training_data[i]
+
+    i += 1
+    if cleaned_training_data[i] in diacritics:
+        refined_text += cleaned_training_data[i]
+    else:
+        refined_text += cleaned_training_data[i] + SAKEN_CHAR
+
+    # print('refined_text', refined_text)
+    with codecs.open('refined_text.txt', encoding='utf-8', mode='w+') as f:
+        f.write(refined_text)
+
 
 '''
 refined_text = ''
-
 for i in range(0, len(training_data) - 1):
     if training_data[i] in diacritics:
         refined_text += training_data[i]
@@ -106,13 +143,11 @@ for i in range(0, len(training_data) - 1):
         refined_text += training_data[i] + SAKEN_CHAR
     else:
         refined_text += training_data[i]
-
 i += 1
 if training_data[i] in diacritics:
     refined_text += training_data[i]
 else:
     refined_text += training_data[i] + SAKEN_CHAR
-
 #print('refined_text', refined_text)
 '''
 
@@ -121,61 +156,60 @@ else:
     do it again for testing data for calculating accuracy at the end
 '''
 
-testing_data = testing_data.replace(FATHE_TASHDID, TASHDID_FATHE)
-testing_data = testing_data.replace(KASRE_TASHDID, TASHDID_KASRE)
-testing_data = testing_data.replace(ZAMME_TASHDID, TASHDID_ZAMME)
-testing_data = testing_data.replace(TANVINE_FATHE_TASHDID, TASHDID_TANVINE_FATHE)
-testing_data = testing_data.replace(TANVINE_KASREH_TASHDID, TASHDID_TANVINE_KASRE)
-testing_data = testing_data.replace(TANVINE_ZAMME_TASHDID, TASHDID_TANVINE_ZAMME)
+# Testing Data & Refined Testing Data
+testing_data = original_text[int(0.75 * original_text_length):].strip()
+if os.path.exists('testing_data.txt') & os.path.exists('refined_testing_data'):
+    with codecs.open('testing_data.txt', encoding='utf-8-sig') as testing_data_file:
+        testing_data = testing_data_file.read()
 
-for k, v in diacritics_mappings.items():
-    testing_data = testing_data.replace(k, v)
-
-#############################Cleaning Training Data###############################
-
-splited_training_data = re.split('[!؟:،؛,.]', training_data)
-cleaned_training_data = ''
-
-for s in splited_training_data:
-    if len(s) > maxlen:
-        cleaned_training_data += s + '.'
-
-refined_text = ''
-for i in range(0, len(cleaned_training_data) - 1):
-    if cleaned_training_data[i] in diacritics:
-        refined_text += cleaned_training_data[i]
-    elif cleaned_training_data[i + 1] not in diacritics:
-        refined_text += cleaned_training_data[i] + SAKEN_CHAR
-    else:
-        refined_text += cleaned_training_data[i]
-
-i += 1
-if cleaned_training_data[i] in diacritics:
-    refined_text += cleaned_training_data[i]
+    with codecs.open('refined_testing_data.txt', encoding='utf-8-sig') as refined_testing_data_file:
+        refined_testing_data = refined_testing_data_file.read()
 else:
-    refined_text += cleaned_training_data[i] + SAKEN_CHAR
+    testing_data = testing_data.replace(FATHE_TASHDID, TASHDID_FATHE)
+    testing_data = testing_data.replace(KASRE_TASHDID, TASHDID_KASRE)
+    testing_data = testing_data.replace(ZAMME_TASHDID, TASHDID_ZAMME)
+    testing_data = testing_data.replace(TANVINE_FATHE_TASHDID, TASHDID_TANVINE_FATHE)
+    testing_data = testing_data.replace(TANVINE_KASREH_TASHDID, TASHDID_TANVINE_KASRE)
+    testing_data = testing_data.replace(TANVINE_ZAMME_TASHDID, TASHDID_TANVINE_ZAMME)
 
-#print('refined_text', refined_text)
-########################################################################################
+    for k, v in diacritics_mappings.items():
+        testing_data = testing_data.replace(k, v)
 
+    ########################################################################################
+    refined_testing_data = ''
 
-refined_testing_data = ''
-
-for i in range(0, len(testing_data) - 1):
+    for i in range(0, len(testing_data) - 1):
+        if testing_data[i] in diacritics:
+            refined_testing_data += testing_data[i]
+        elif testing_data[i + 1] not in diacritics:
+            refined_testing_data += testing_data[i] + SAKEN_CHAR
+        else:
+            refined_testing_data += testing_data[i]
+    i += 1
     if testing_data[i] in diacritics:
         refined_testing_data += testing_data[i]
-    elif testing_data[i + 1] not in diacritics:
-        refined_testing_data += testing_data[i] + SAKEN_CHAR
     else:
-        refined_testing_data += testing_data[i]
-i += 1
-if testing_data[i] in diacritics:
-    refined_testing_data += testing_data[i]
-else:
-    refined_testing_data += testing_data[i] + SAKEN_CHAR
+        refined_testing_data += testing_data[i] + SAKEN_CHAR
 
-#print('refined_testing_data', refined_testing_data)
-########################################################################
+
+   # testing_data = refined_testing_data  # think about if it is correct to add this line
+    # preparing testing data
+    for c in diacritics:
+        testing_data = testing_data.replace(c, '')
+
+    testing_data = ((maxlen - 1) // 2) * (' ' + SAKEN_CHAR) + testing_data
+
+    # print("testing_data", testing_data)
+
+    # print('refined_testing_data', refined_testing_data)
+
+    with codecs.open('testing_data.txt', encoding='utf-8', mode='w+') as f:
+        f.write(testing_data)
+
+    with codecs.open('refined_testing_data.txt', encoding='utf-8', mode='w+') as f:
+        f.write(refined_testing_data)
+
+#####################################################################################################
 
 alphabet = set('شسزرذدخحجثتةبائؤأإآءیۀگکژچپيوهنملقفغعظطضصٔٴ ك ى') - set(' ')
 all_chars = set(refined_text) | set(original_text) | diacritics | alphabet
@@ -194,21 +228,9 @@ char_indices = dict((c, i) for i, c in enumerate(all_chars))
 indices_char = dict((i, c) for i, c in enumerate(all_chars))
 diacritics_indices = dict((c, i) for i, c in enumerate(diacritics))
 indices_diacritics = dict((i, c) for i, c in enumerate(diacritics))
-
-testing_data = refined_testing_data
-# preparing testting data
-for c in diacritics:
-    testing_data = testing_data.replace(c, '')
-
-testing_data = ((maxlen - 1) // 2) * (' ' + SAKEN_CHAR) + testing_data
-
-#print("testing_data", testing_data)
-
-#################################################
-
+######################################################################################################
 
 # cut the text in semi-redundant sequences of maxlen characters
-
 
 step = 2
 sentences = []
@@ -228,8 +250,8 @@ for i in range(0, len(refined_text) - maxlen, step):
 '''
 
 #with open('refined_text.txt', mode='w+') as f:
-with codecs.open('refined_text.txt', encoding='utf-8', mode='w+') as f:
-    f.write(refined_text)
+#with codecs.open('refined_text.txt', encoding='utf-8', mode='w+') as f:
+#    f.write(refined_text)
 
 print('nb sequences:', len(sentences))
 print('Vectorization...')
@@ -376,6 +398,6 @@ for iteration in range(1, 31):
 
 
 
-        #model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
+        # model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
 
 model.save(EXPERIMENT_CONFIGURATION + '_Model.h5', overwrite=True)
